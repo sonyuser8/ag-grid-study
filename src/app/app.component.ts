@@ -2,9 +2,13 @@ import { Component, OnInit, ViewChild } from '@angular/core';
 import { HttpClient, HttpResponse, HttpErrorResponse } from '@angular/common/http';
 import { AgGridAngular } from 'ag-grid-angular';
 import { Column } from 'ag-grid-community/dist/lib/entities/column';
-import { Observable, of } from 'rxjs';
-import { catchError, map, tap } from 'rxjs/operators';
+import { of } from 'rxjs';
+import { Observable, Observer } from 'rxjs';
+import { catchError, tap, concatMap } from 'rxjs/operators';
 import { MatSnackBar } from '@angular/material/snack-bar';
+
+import * as socketIo from 'socket.io-client';
+import { Socket } from './shared/interfaces';
 
 @Component({
   selector: 'app-root',
@@ -13,7 +17,17 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 })
 export class AppComponent implements OnInit {
   @ViewChild('agGrid', { static: true }) agGrid: AgGridAngular;
-  constructor(private http: HttpClient, private _snackBar: MatSnackBar) {
+  constructor(
+    private http: HttpClient,
+    private snackBar: MatSnackBar
+  ) {
+    // getQuotes() : Observable < number > {
+    //   this.socket = socketIo('http://localhost:8080');
+    //   this.socket.on('data', (res) => {
+    //     this.observer.next(res.data);
+    //   });
+    //   return this.createObservable();
+    // }
     document.addEventListener('paste', (e: ClipboardEvent) => {
       if (this.agGrid.api.getEditingCells().length === 0) {
         // tslint:disable-next-line: no-unused-expression
@@ -25,9 +39,11 @@ export class AppComponent implements OnInit {
   }
 
   isEditable = false;
+  observer;
+  socket;
   isProcessing = false;
   title = 'app';
-  private defaultColDef = {
+  defaultColDef = {
     sortable: true,
     filter: true,
     editable: (node) => {
@@ -35,7 +51,6 @@ export class AppComponent implements OnInit {
     },
     resizable: true
   };
-
   columnDefs = [
     // { headerName: '', field: '', width: 40, sortable: false, filter: false, checkboxSelection: true, headerCheckboxSelection: true },
     { headerName: '', field: '', width: 40, sortable: false, filter: false },
@@ -51,11 +66,35 @@ export class AppComponent implements OnInit {
   rowData2 = [
     { make: 'Toyota2', model: 'Celica2', price: 350002 },
   ];
-
+  data;
+  streaming$;
   ngOnInit() {
+    // this.streaming$ = this.http.get('http://localhost:8080/getFab', { responseType: 'text' });
+    // this.streaming$ = this.http.get('http://localhost:8080/streaming', { responseType: 'text' });
+    this.streaming$ = this.http.get('http://localhost:8080/streaming',
+      { responseType: 'text', reportProgress: true, observe: 'events' }).pipe(
+        concatMap(event => {
+          console.log('CKPT1');
+          this.data = event['partialText'];
+          console.log(event);
+          console.log('CKPT2');
+          return of();
+        })
+      ).subscribe();
+  }
+  getQuotes(): Observable<string> {
+    this.socket = socketIo('http://localhost:8080/streaming');
+    this.socket.on('data', (res) => {
+      this.observer.next(res.data);
+    });
+    return this.createObservable();
   }
 
-
+  createObservable(): Observable<string> {
+    return new Observable(observer => {
+      this.observer = observer;
+    });
+  }
 
   isRowSelectable(node) {
     // if (node.data['make'] == 'Toyota') {
@@ -65,6 +104,7 @@ export class AppComponent implements OnInit {
     // }'
     return true;
   }
+
 
   toggleEdit() {
     this.isEditable = !this.isEditable;
@@ -106,10 +146,10 @@ export class AppComponent implements OnInit {
         resp => {
           this.isProcessing = false;
           if (resp instanceof HttpErrorResponse) {
-            console.log('CKPT1:', resp);
-            this.openSnackBar(`Error!!! ${resp.error.message}`, 'Update Data', 8000);
+            // console.log('CKPT1:', resp);
+            this.openSnackBar(`Error!!! ${resp.error.message}`, 'Save Data', 8000);
           } else {
-            this.openSnackBar('Success!', 'Update Data', 1000);
+            this.openSnackBar('Success!', 'Save Data', 1000);
           }
         });
   }
@@ -140,9 +180,13 @@ export class AppComponent implements OnInit {
   clearTableRowData() {
     this.agGrid.api.setRowData([]);
   }
-  openSnackBar(message: string, action: string, duration) {
-    this._snackBar.open(message, action, {
-      duration: duration,
+  openSnackBar(message: string, action: string, time: number) {
+    this.snackBar.open(message, action, {
+      duration: time,
+      verticalPosition: 'top'
     });
   }
+
 }
+
+

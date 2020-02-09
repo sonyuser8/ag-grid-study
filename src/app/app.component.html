@@ -1,6 +1,15 @@
 <div class="row mt-3">
-  <div class="col"></div>
   <div class="col">
+    {{data}}
+  </div>
+  <div class="col">
+
+    t2 <br />
+    <!-- <p> QQ {{ streaming$ | async }}</p> -->
+    <!-- <div *ngIf="streaming$|async as streaming">
+      {{ streaming }}
+    </div> -->
+    t1 <br />
     <div class="mb-3">
       <button (click)="onClick()" class="mx-1">Click</button>
     </div>
@@ -16,12 +25,10 @@
         </button>
       </div>
     </div>
-    <div *ngIf="isEditable" class="alert alert-info" role="alert">
-      <strong>JUST TRY IT:</strong> Ctrl+V to paste csv row data
-    </div>
+    <div *ngIf="isEditable" class="alert alert-info" role="alert"><strong>JUST TRY IT:</strong> Ctrl+V to paste csv row data</div>
     <div *ngIf="isProcessing" class="d-flex align-items-center">
       <mat-spinner [diameter]="25"></mat-spinner>
-      <div>Saving data to Server ... </div>
+      <div>Saving data to Server ...</div>
     </div>
     <ag-grid-angular
       #agGrid
